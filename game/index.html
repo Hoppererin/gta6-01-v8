@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Isla Fortuna — Open-World Crime Game</title>
+<link rel="icon" href="data:,">
+<style>
+  html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #0a1420; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+  #game { display: block; width: 100vw; height: 100vh; }
+  #hud { position: fixed; inset: 0; pointer-events: none; color: #fff; z-index: 10; }
+  .panel { background: rgba(10,20,30,0.72); border-radius: 10px; padding: 8px 12px; }
+  .row { display: flex; align-items: center; gap: 8px; margin: 2px 0; }
+  .lbl { font-size: 12px; letter-spacing: 1px; color: #ffd700; font-weight: 700; }
+  .small { font-size: 13px; color: #dfe8f2; }
+  .bar { flex: 1; height: 8px; background: #222; border-radius: 4px; overflow: hidden; min-width: 60px; }
+  .fill { height: 100%; border-radius: 4px; }
+  .fill.heat { background: #ffaa33; }
+  .fill.hp { background: #2ecc71; }
+  .fill.respect-fill { background: #c86bfa; }
+  .cash { font-size: 22px; font-weight: 800; }
+  .stars { font-size: 18px; color: #ffd700; letter-spacing: 2px; }
+  /* top-left status */
+  #hud-tl { position: absolute; top: 12px; left: 12px; width: 300px; }
+  /* mission panel, top centre */
+  #hud-mission { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); text-align: center; min-width: 420px; max-width: 640px; }
+  #hud-mission .job { font-size: 16px; font-weight: 800; color: #ffd700; }
+  #hud-mission .objective { font-size: 14px; margin-top: 2px; }
+  #hud-mission .timer { font-size: 18px; font-weight: 800; margin-top: 2px; }
+  /* top-right: minimap + dispatch */
+  #hud-tr { position: absolute; top: 12px; right: 12px; display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+  #hud-minimap { border-radius: 8px; border: 2px solid rgba(255,255,255,0.35); display: block; }
+  #hud-dispatch { width: 300px; }
+  .dispatch-title { font-size: 13px; font-weight: 800; color: #ffd700; letter-spacing: 0.5px; }
+  .unit { font-size: 13px; padding: 2px 0; color: #eaf2fa; }
+  .unit.heli { color: #ff88ff; font-weight: 700; }
+  .unit.disabled { color: #888; text-decoration: line-through; }
+  .unit.idle { color: #9fb2c4; font-style: italic; }
+  /* air banner */
+  #hud-air { display: none; position: absolute; top: 190px; right: 12px; background: rgba(120,0,40,0.8); color: #fff; font-weight: 800; font-size: 13px; padding: 6px 10px; border-radius: 8px; }
+  /* dialogue, bottom-left */
+  #hud-dialogue { position: absolute; left: 12px; bottom: 44px; width: 600px; display: flex; gap: 12px; align-items: flex-start; }
+  .portrait { width: 52px; height: 52px; min-width: 52px; border-radius: 50%; background: #d4a017; color: #fff; font-size: 26px; font-weight: 800; display: flex; align-items: center; justify-content: center; border: 2px solid rgba(255,255,255,0.7); }
+  .dlg-text .who { font-size: 15px; font-weight: 800; color: #ffd700; }
+  .dlg-text .say { font-size: 15px; line-height: 1.35; margin-top: 2px; }
+  /* bottom-right stack */
+  #hud-br { position: absolute; right: 12px; bottom: 44px; display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+  .weapons { display: flex; gap: 6px; padding: 6px; }
+  .slot { display: flex; flex-direction: column; align-items: center; min-width: 62px; padding: 5px 6px; border-radius: 6px; background: rgba(255,255,255,0.08); font-size: 12px; }
+  .slot.active { background: rgba(255,215,0,0.25); outline: 2px solid #ffd700; }
+  .slot.locked { opacity: 0.55; }
+  .slot .key { font-size: 11px; color: #ffd700; font-weight: 800; }
+  .slot .wname { font-weight: 800; }
+  .slot .ammo { color: #cfe0ee; }
+  .respect { width: 240px; }
+  .radio { font-size: 13px; }
+  .speed { text-align: right; }
+  .speed #hud-speed-n { font-size: 30px; font-weight: 800; }
+  .speed .unit { font-size: 14px; color: #cfe0ee; margin-left: 4px; }
+  .speed .car { font-size: 13px; color: #ffd700; font-weight: 700; }
+  #hud-hint { position: absolute; left: 24px; bottom: 14px; font-size: 13px; color: rgba(255,255,255,0.8); text-shadow: 0 1px 2px #000; }
+  /* overlays */
+  .overlay { position: absolute; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: center; text-align: center; background: rgba(5,10,20,0.72); }
+  #hud-title { display: flex; background: linear-gradient(180deg, #ff9a3c 0%, #c94b7c 55%, #2b1a4a 100%); }
+  .overlay.red { background: rgba(120,0,0,0.55); }
+  .title-big { font-size: 64px; font-weight: 800; color: #ffd700; letter-spacing: 2px; }
+  .title-big.small { font-size: 40px; }
+  .title-sub { font-size: 24px; margin-top: 12px; }
+  .title-lines { font-size: 17px; line-height: 1.7; color: #ffe9a8; margin-top: 18px; }
+  .title-lines .dim { color: #bbb; font-size: 15px; }
+</style>
+</head>
+<body>
+<!-- WebGL canvas: fills the viewport; src/main.js boots the game here. -->
+<canvas id="game"></canvas>
+<div id="hud"></div>
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>
